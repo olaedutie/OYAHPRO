@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 0.1 Global Helpers
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+    function incoming() {
+      return request.resource.data;
+    }
+    function existing() {
+      return resource.data;
+    }
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // 1. Customers Collection
+    match /customers/{customerId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidCustomer(incoming());
+      allow update: if isSignedIn() && isValidCustomer(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'lastMessage', 'lastMessageAt'])
+      );
+      
+      function isValidCustomer(data) {
+        return data.phone is string && data.phone.size() <= 20 
+          && data.status in ['New', 'Interested', 'Paid']
+          && data.createdAt == (resource == null ? request.time : existing().createdAt);
+      }
+
+      // Messages Subcollection
+      match /messages/{messageId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && isValidMessage(incoming());
+        
+        function isValidMessage(data) {
+          return data.content is string && data.content.size() <= 2000
+            && data.role in ['user', 'assistant']
+            && data.timestamp == request.time
+            && data.customerId == customerId;
+        }
+      }
+    }
+
+    // 2. Payments Collection
+    match /payments/{paymentId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidPayment(incoming());
+      allow update: if isSignedIn() && isValidPayment(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'paystackReference'])
+      );
+
+      function isValidPayment(data) {
+        return data.amount is number && data.amount > 0
+          && data.status in ['Paid', 'Pending']
+          && data.date is timestamp;
+      }
+    }
+
+    // 3. Settings Collection
+    match /settings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidSettings(incoming());
+
+      function isValidSettings(data) {
+        return data.welcomeMessage is string && data.welcomeMessage.size() <= 500
+          && data.products is list && data.products.size() <= 50;
+      }
+    }
+  }
+}

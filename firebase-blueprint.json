@@ -1,0 +1,84 @@
+{
+  "entities": {
+    "Customer": {
+      "title": "Customer",
+      "description": "Information about a customer potential lead.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string", "enum": ["New", "Interested", "Paid"] },
+        "lastMessage": { "type": "string" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["phone", "status", "createdAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A message in a chat thread.",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string" },
+        "content": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "status": { "type": "string", "enum": ["sent", "delivered", "read"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["customerId", "content", "role", "timestamp"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "A payment transaction.",
+      "type": "object",
+      "properties": {
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Paid", "Pending"] },
+        "date": { "type": "string", "format": "date-time" },
+        "paystackReference": { "type": "string" }
+      },
+      "required": ["customerId", "amount", "status", "date"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Business automation settings.",
+      "type": "object",
+      "properties": {
+        "welcomeMessage": { "type": "string" },
+        "aiTone": { "type": "string" },
+        "followUpTiming": { "type": "number" },
+        "products": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "price": { "type": "number" },
+              "description": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "customers": {
+      "schema": "Customer",
+      "description": "List of all customers/leads."
+    },
+    "customers/{customerId}/messages": {
+      "schema": "Message",
+      "description": "Messages for a specific customer."
+    },
+    "payments": {
+      "schema": "Payment",
+      "description": "Transaction records."
+    },
+    "settings": {
+      "schema": "Settings",
+      "description": "Singleton-like settings for the business owner."
+    }
+  }
+}
